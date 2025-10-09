@@ -1,4 +1,3 @@
-// src/utils/validators.js - File Validation Functions
 import config from '../config';
 
 /**

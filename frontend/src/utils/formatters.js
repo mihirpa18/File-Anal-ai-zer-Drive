@@ -1,4 +1,3 @@
-// src/utils/formatters.js - Utility Functions for Formatting
 
 /**
  * Format bytes to human-readable size
