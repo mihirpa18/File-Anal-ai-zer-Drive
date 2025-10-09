@@ -104,26 +104,47 @@ personal-cloud-storage/
 │   └── server.js                # Entry point
 │
 └── frontend/
-    ├── src/
-    │   ├── components/
-    │   │   ├── common/          # Reusable components
-    │   │   ├── layout/          # Layout components
-    │   │   ├── upload/          # Upload components
-    │   │   ├── files/           # File display components
-    │   │   └── search/          # Search components
-    │   ├── hooks/               # Custom React hooks
-    │   ├── services/
-    │   │   └── api.js           # API client
-    │   ├── utils/               # Utility functions
-    │   ├── styles/
-    │   │   └── index.css        # Global styles
-    │   ├── App.jsx
-    │   ├── main.jsx
-    │   └── config.js
-    ├── .env
-    ├── package.json
-    ├── vite.config.js
-    └── tailwind.config.js
+   ├── public/
+   │   └── vite.svg
+   ├── src/
+   │   ├── components/
+   │   │   ├── common/
+   │   │   │   ├── Button.jsx
+   │   │   │   ├── Tag.jsx
+   │   │   │   ├── Loading.jsx
+   │   │   │   └── ErrorMessage.jsx
+   │   │   ├── layout/
+   │   │   │   ├── Header.jsx
+   │   │   │   └── Layout.jsx
+   │   │   ├── upload/
+   │   │   │   ├── UploadZone.jsx
+   │   │   │   └── UploadProgress.jsx
+   │   │   ├── files/
+   │   │   │   ├── FileGrid.jsx
+   │   │   │   ├── FileCard.jsx
+   │   │   │   └── EmptyState.jsx
+   │   │   └── search/
+   │   │       └── SearchBar.jsx
+   │   ├── hooks/
+   │   │   ├── useFiles.js
+   │   │   └── useUpload.js
+   │   ├── services/
+   │   │   └── api.js
+   │   ├── utils/
+   │   │   ├── formatters.js
+   │   │   └── validators.js
+   │   ├── styles/
+   │   │   └── index.css
+   │   ├── App.jsx
+   │   ├── main.jsx
+   │   └── config.js
+   ├── .env.example
+   ├── .gitignore
+   ├── index.html
+   ├── package.json
+   ├── vite.config.js
+   ├── tailwind.config.js
+   └── postcss.config.js
 ```
 
 
