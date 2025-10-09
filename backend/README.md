@@ -1,4 +1,4 @@
-# Personal Cloud Storage Backend
+# FILE-ANAL(AI)ZER Backend
 
 Backend API for Personal Cloud Storage with AI-powered file analysis.
 
@@ -105,7 +105,7 @@ GET /api/files/search/tags
 GET /api/files/stats/summary
 ```
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 backend/

@@ -1,8 +1,8 @@
-# Personal Cloud Storage - Frontend
+# FILE-ANAL(AI)ZER-DRIVE - Frontend
 
 React-based frontend for AI-powered personal cloud storage.
 
-## 🚀 Features
+## Features
 
 - Drag-and-drop file upload
 - Real-time upload progress
@@ -13,12 +13,12 @@ React-based frontend for AI-powered personal cloud storage.
 - Responsive design (mobile-friendly)
 - Storage statistics dashboard
 
-## 📋 Prerequisites
+## Prerequisites
 
 - Node.js (v18 or higher)
 - Backend server running on `http://localhost:5000`
 
-## 🔧 Installation
+## Installation
 
 ### 1. Install Dependencies
 
@@ -40,7 +40,7 @@ Edit `.env` if needed (default works with backend on port 5000):
 VITE_API_URL=http://localhost:5000/api
 ```
 
-## 🎯 Running the App
+## Running the App
 
 ```bash
 npm run dev
