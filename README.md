@@ -187,7 +187,7 @@ personal-cloud-storage/
 - Google Gemini AI
 
 ### Frontend
-- React 18
+- React
 - Vite
 - Tailwind CSS
 

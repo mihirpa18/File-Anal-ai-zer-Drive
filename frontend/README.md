@@ -5,8 +5,8 @@ React-based frontend for AI-powered personal cloud storage.
 ## Features
 
 - Drag-and-drop file upload
-- Real-time upload progress
-- Beautiful file grid with thumbnails
+- upload progress
+- file grid with thumbnails
 - AI-generated tags display
 - Search and filter by tags
 - File download and deletion
