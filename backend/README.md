@@ -69,15 +69,11 @@ Server will start on `http://localhost:5000`
 ### Upload File
 ```http
 POST /api/files/upload
-Content-Type: multipart/form-data
-
-Form field: file
 ```
 
 ### Get All Files
 ```http
 GET /api/files
-Query params: ?tag=nature&sort=-uploadDate&limit=50
 ```
 
 ### Get Single File
