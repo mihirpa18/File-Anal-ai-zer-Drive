@@ -4,14 +4,15 @@ const File = require('../models/File');
 const { upload, handleMulterError } = require('../middleware/upload');
 const { analyzeFile } = require('../services/aiAnalysis');
 const { deleteFile } = require('../services/fileHandler');
+const { protect } = require('../middleware/auth');
 const path = require('path');
 
 /**
  * @route   POST /api/files/upload
  * @desc    Upload a file and analyze it with AI
- * @access  Public
+ * @access  Private (requires authentication)
  */
-router.post('/upload', upload.single('file'), handleMulterError, async (req, res) => {
+router.post('/upload', protect, upload.single('file'), handleMulterError, async (req, res) => {
   try {
     // Check if file was uploaded
     if (!req.file) {
@@ -21,10 +22,11 @@ router.post('/upload', upload.single('file'), handleMulterError, async (req, res
       });
     }
 
-    console.log(`File uploaded: ${req.file.originalname}`);
+    console.log(`File uploaded by user ${req.user.email}: ${req.file.originalname}`);
 
-    // Create file record in database
+    // Create file record in database with userId
     const newFile = new File({
+      userId: req.userId, // From auth middleware
       filename: req.file.filename,
       originalName: req.file.originalname,
       path: req.file.path,
@@ -34,7 +36,7 @@ router.post('/upload', upload.single('file'), handleMulterError, async (req, res
     });
 
     await newFile.save();
-    console.log(`File saved to database: ${newFile._id}`);
+    console.log(`File saved to database: ${newFile.filename}`);
 
     // Analyze file with AI (synchronously for simplicity)
     try {
@@ -54,7 +56,6 @@ router.post('/upload', upload.single('file'), handleMulterError, async (req, res
       console.log(`AI analysis complete for: ${newFile._id}`);
     } catch (aiError) {
       console.error('AI analysis failed:', aiError.message);
-      // Don't fail the upload if AI analysis fails
       newFile.analysisError = aiError.message;
       await newFile.save();
     }
@@ -78,15 +79,15 @@ router.post('/upload', upload.single('file'), handleMulterError, async (req, res
 
 /**
  * @route   GET /api/files
- * @desc    Get all files with optional filtering
- * @access  Public
+ * @desc    Get all files for current user
+ * @access  Private
  */
-router.get('/', async (req, res) => {
+router.get('/', protect, async (req, res) => {
   try {
     const { tag, sort = '-uploadDate', limit = 100 } = req.query;
 
-    // Build query
-    let query = {};
+    // Build query - ONLY for current user
+    let query = { userId: req.userId };
     
     // Filter by tag if provided
     if (tag) {
@@ -116,17 +117,21 @@ router.get('/', async (req, res) => {
 
 /**
  * @route   GET /api/files/:id
- * @desc    Get single file by ID
- * @access  Public
+ * @desc    Get single file by ID (only if owned by user)
+ * @access  Private
  */
-router.get('/:id', async (req, res) => {
+router.get('/:id', protect, async (req, res) => {
   try {
-    const file = await File.findById(req.params.id);
+    // Find file that belongs to current user
+    const file = await File.findOne({
+      _id: req.params.id,
+      userId: req.userId
+    });
 
     if (!file) {
       return res.status(404).json({
         success: false,
-        message: 'File not found'
+        message: 'File not found or access denied'
       });
     }
 
@@ -147,17 +152,21 @@ router.get('/:id', async (req, res) => {
 
 /**
  * @route   GET /api/files/download/:id
- * @desc    Download file
- * @access  Public
+ * @desc    Download file (only if owned by user)
+ * @access  Private
  */
-router.get('/download/:id', async (req, res) => {
+router.get('/download/:id', protect, async (req, res) => {
   try {
-    const file = await File.findById(req.params.id);
+    // Find file that belongs to current user
+    const file = await File.findOne({
+      _id: req.params.id,
+      userId: req.userId
+    });
 
     if (!file) {
       return res.status(404).json({
         success: false,
-        message: 'File not found'
+        message: 'File not found or access denied'
       });
     }
 
@@ -186,17 +195,21 @@ router.get('/download/:id', async (req, res) => {
 
 /**
  * @route   DELETE /api/files/:id
- * @desc    Delete file
- * @access  Public
+ * @desc    Delete file (only if owned by user)
+ * @access  Private
  */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', protect, async (req, res) => {
   try {
-    const file = await File.findById(req.params.id);
+    // Find file that belongs to current user
+    const file = await File.findOne({
+      _id: req.params.id,
+      userId: req.userId
+    });
 
     if (!file) {
       return res.status(404).json({
         success: false,
-        message: 'File not found'
+        message: 'File not found or access denied'
       });
     }
 
@@ -206,7 +219,7 @@ router.delete('/:id', async (req, res) => {
     // Delete from database
     await File.findByIdAndDelete(req.params.id);
 
-    console.log(`🗑️  Deleted file: ${file.originalName}`);
+    console.log(`User ${req.user.email} deleted file: ${file.originalName}`);
 
     res.json({
       success: true,
@@ -225,13 +238,13 @@ router.delete('/:id', async (req, res) => {
 
 /**
  * @route   GET /api/files/search/tags
- * @desc    Get all unique tags
- * @access  Public
+ * @desc    Get all unique tags for current user
+ * @access  Private
  */
-router.get('/search/tags', async (req, res) => {
+router.get('/search/tags', protect, async (req, res) => {
   try {
-    // Get all unique tags from all files
-    const tags = await File.distinct('aiTags');
+    // Get all unique tags from user's files
+    const tags = await File.distinct('aiTags', { userId: req.userId });
     
     // Sort alphabetically
     tags.sort();
@@ -254,21 +267,30 @@ router.get('/search/tags', async (req, res) => {
 
 /**
  * @route   GET /api/files/stats/summary
- * @desc    Get storage statistics
- * @access  Public
+ * @desc    Get storage statistics for current user
+ * @access  Private
  */
-router.get('/stats/summary', async (req, res) => {
+router.get('/stats/summary', protect, async (req, res) => {
   try {
-    const totalFiles = await File.countDocuments();
+    const totalFiles = await File.countDocuments({ userId: req.userId });
+    
     const totalSize = await File.aggregate([
+      { $match: { userId: req.userId } },
       { $group: { _id: null, total: { $sum: '$size' } } }
     ]);
     
-    const analyzedFiles = await File.countDocuments({ analyzed: true });
+    const analyzedFiles = await File.countDocuments({ 
+      userId: req.userId,
+      analyzed: true 
+    });
+    
     const imageFiles = await File.countDocuments({ 
+      userId: req.userId,
       mimetype: { $regex: '^image/' } 
     });
+    
     const documentFiles = await File.countDocuments({ 
+      userId: req.userId,
       mimetype: { $regex: '^(application|text)/' } 
     });
 

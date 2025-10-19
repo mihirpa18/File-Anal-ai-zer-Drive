@@ -1,6 +1,12 @@
 const mongoose = require('mongoose');
 
 const fileSchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+    index: true 
+  },
   filename: {
     type: String,
     required: true,
@@ -52,10 +58,10 @@ const fileSchema = new mongoose.Schema({
   timestamps: true
 });
 
-
-// Index for faster searches
-fileSchema.index({ aiTags: 1 });
-fileSchema.index({ mimetype: 1 });
+// Indexes for faster queries
+fileSchema.index({ userId: 1, uploadDate: -1 });
+fileSchema.index({ userId: 1, aiTags: 1 });
+fileSchema.index({ userId: 1, mimetype: 1 });
 
 // Virtual for file URL
 fileSchema.virtual('url').get(function() {

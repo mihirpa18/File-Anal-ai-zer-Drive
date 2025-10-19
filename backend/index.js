@@ -3,23 +3,24 @@ const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/database');
 const fileRoutes = require('./routes/files');
+const authRoutes = require('./routes/auth'); 
 const errorHandler = require('./middleware/errorHandler');
 const path = require('path');
 const fs = require('fs');
 
 const app = express();
-const PORT = process.env.PORT ;
-
-// Middleware
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+const PORT = process.env.PORT || 5000;
 
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Serve static files from uploads directory
 app.use('/uploads', express.static(uploadsDir));
@@ -32,14 +33,16 @@ app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'OK', 
     message: 'Personal Cloud Storage API is running',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    authentication: 'enabled'
   });
 });
 
 // Routes
-app.use('/api/files', fileRoutes);
+app.use('/api/auth', authRoutes);  
+app.use('/api/files', fileRoutes); 
 
-// Error handling middleware 
+// Error handling middleware (must be last)
 app.use(errorHandler);
 
 // Handle 404 routes
@@ -55,6 +58,7 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Uploads directory: ${uploadsDir}`);
   console.log(`API Health: http://localhost:${PORT}/api/health`);
+  console.log(`Authentication: Enabled`);
 });
 
 // Handle unhandled promise rejections
