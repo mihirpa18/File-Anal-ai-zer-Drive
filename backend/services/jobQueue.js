@@ -1,4 +1,3 @@
-// services/jobQueue.js - Job Queue for Asynchronous AI Processing
 const Queue = require('bull');
 const { analyzeFile } = require('./aiAnalysis');
 const File = require('../models/File');
