@@ -2,10 +2,10 @@ const express = require('express');
 const router = express.Router();
 const File = require('../models/File');
 const { upload, handleMulterError } = require('../middleware/upload');
-const { analyzeFile } = require('../services/aiAnalysis');
 const { deleteFile } = require('../services/fileHandler');
 const { protect } = require('../middleware/auth');
 const path = require('path');
+const { addAnalysisJob, getQueueStats } = require('../services/jobQueue');
 
 /**
  * @route   POST /api/files/upload
@@ -24,48 +24,44 @@ router.post('/upload', protect, upload.single('file'), handleMulterError, async 
 
     console.log(`File uploaded by user ${req.user.email}: ${req.file.originalname}`);
 
-    // Create file record in database with userId
+    // Create file record in database
     const newFile = new File({
-      userId: req.userId, // From auth middleware
+      userId: req.userId,
       filename: req.file.filename,
       originalName: req.file.originalname,
       path: req.file.path,
       mimetype: req.file.mimetype,
       size: req.file.size,
-      analyzed: false
+      analyzed: false  // Will be analyzed asynchronously
     });
 
     await newFile.save();
-    console.log(`File saved to database: ${newFile.filename}`);
+    console.log(`File saved to database: ${newFile._id}`);
 
-    // Analyze file with AI (synchronously for simplicity)
+    // Add job to queue for async AI analysis (non-blocking)
     try {
-      const aiResults = await analyzeFile(req.file.path, req.file.mimetype);
-      
-      // Update file with AI results
-      newFile.aiTags = aiResults.tags || [];
-      newFile.summary = aiResults.summary || '';
-      newFile.analyzed = true;
-      newFile.analysisDate = new Date();
-      
-      if (aiResults.error) {
-        newFile.analysisError = aiResults.error;
-      }
-      
-      await newFile.save();
-      console.log(`AI analysis complete for: ${newFile._id}`);
-    } catch (aiError) {
-      console.error('AI analysis failed:', aiError.message);
-      newFile.analysisError = aiError.message;
-      await newFile.save();
-    }
+      await addAnalysisJob(newFile._id, req.file.path, req.file.mimetype, {
+        priority: 1  // Higher priority for new uploads
+      });
 
-    // Return file with AI results
-    res.status(201).json({
-      success: true,
-      message: 'File uploaded and analyzed successfully',
-      data: newFile
-    });
+      // Return immediately - don't wait for AI analysis
+      res.status(201).json({
+        success: true,
+        message: 'File uploaded successfully! AI analysis in progress...',
+        data: newFile
+      });
+
+    } catch (queueError) {
+      console.error('Failed to queue AI analysis:', queueError);
+      
+      // File is still uploaded, just analysis failed to queue
+      res.status(201).json({
+        success: true,
+        message: 'File uploaded successfully (AI analysis pending)',
+        data: newFile,
+        warning: 'AI analysis could not be queued'
+      });
+    }
 
   } catch (error) {
     console.error('Upload error:', error);
@@ -284,6 +280,11 @@ router.get('/stats/summary', protect, async (req, res) => {
       analyzed: true 
     });
     
+    const pendingFiles = await File.countDocuments({
+      userId: req.userId,
+      analyzed: false
+    });
+    
     const imageFiles = await File.countDocuments({ 
       userId: req.userId,
       mimetype: { $regex: '^image/' } 
@@ -294,15 +295,25 @@ router.get('/stats/summary', protect, async (req, res) => {
       mimetype: { $regex: '^(application|text)/' } 
     });
 
+    // Get queue stats
+    const queueStats = await getQueueStats();
+
     res.json({
       success: true,
       data: {
         totalFiles,
         totalSize: totalSize[0]?.total || 0,
         analyzedFiles,
+        pendingFiles,
         imageFiles,
         documentFiles,
-        analysisRate: totalFiles > 0 ? (analyzedFiles / totalFiles * 100).toFixed(1) : 0
+        analysisRate: totalFiles > 0 ? (analyzedFiles / totalFiles * 100).toFixed(1) : 0,
+        queueStats: queueStats || {
+          waiting: 0,
+          active: 0,
+          completed: 0,
+          failed: 0
+        }
       }
     });
 
@@ -311,6 +322,38 @@ router.get('/stats/summary', protect, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve statistics',
+      error: error.message
+    });
+  }
+});
+
+
+/**
+ * @route   GET /api/files/queue/status
+ * @desc    Get job queue status
+ * @access  Private
+ */
+router.get('/queue/status', protect, async (req, res) => {
+  try {
+    const stats = await getQueueStats();
+
+    if (!stats) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to get queue stats'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: stats
+    });
+
+  } catch (error) {
+    console.error('Get queue status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve queue status',
       error: error.message
     });
   }

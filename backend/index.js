@@ -7,6 +7,8 @@ const authRoutes = require('./routes/auth');
 const errorHandler = require('./middleware/errorHandler');
 const path = require('path');
 const fs = require('fs');
+const { closeQueue, cleanQueue } = require('./services/jobQueue');
+
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -59,9 +61,50 @@ app.listen(PORT, () => {
   console.log(`Uploads directory: ${uploadsDir}`);
   console.log(`API Health: http://localhost:${PORT}/api/health`);
   console.log(`Authentication: Enabled`);
+  console.log(`Job Queue: Enabled (Redis)`);
 });
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {
   console.error('Unhandled Promise Rejection:', err);
+});
+
+// Clean queue periodically (every 24 hours)
+setInterval(() => {
+  cleanQueue();
+}, 24 * 60 * 60 * 1000);
+
+// Graceful shutdown
+const gracefulShutdown = async (signal) => {
+  console.log(`\n${signal} received. Starting graceful shutdown...`);
+  
+  // Stop accepting new requests
+  server.close(() => {
+    console.log('HTTP server closed');
+  });
+
+  // Close job queue
+  await closeQueue();
+  
+  // Close database connection
+  await require('mongoose').connection.close();
+  console.log('MongoDB connection closed');
+  
+  console.log('Graceful shutdown complete');
+  process.exit(0);
+};
+
+// Handle shutdown signals
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled Promise Rejection:', err);
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  gracefulShutdown('UNCAUGHT_EXCEPTION');
 });
